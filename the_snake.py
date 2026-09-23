@@ -69,17 +69,20 @@ class Apple(GameObject):
     в пределах игрового поля и исключает появление на змейке.
     """
 
-    def __init__(self, positions, body_color=APPLE_COLOR):
+    def __init__(self, positions=None, body_color=APPLE_COLOR):
         super().__init__(body_color=body_color)
         self.randomize_position(positions)
 
-    def randomize_position(self, positions):
+    def randomize_position(self, positions=None):
         """
         Случайное размещение яблока на игровом поле.
 
         Генерирует случайные координаты с учётом размеров игрового
         поля, и размера одной клетки сетки и исключает появление на змейке.
         """
+        if positions is None:
+            positions = []
+
         while True:
             position_x = randint(0, GRID_WIDTH - 1) * GRID_SIZE
             position_y = randint(0, GRID_HEIGHT - 1) * GRID_SIZE
@@ -227,7 +230,7 @@ def main():
     """
     pygame.init()
     snake = Snake()
-    apple = Apple(snake.positions)
+    apple = Apple()
     while True:
         clock.tick(SPEED)
         handle_keys(snake)
