@@ -59,37 +59,40 @@ class GameObject:
         Это Абстрактный метод.
         Для переопределения в дочерних классах
         """
-        pass
 
 
 class Apple(GameObject):
     """
-    Класс яблока.
+    Хранит позицию яблока.
 
-    Хранит текущую позицию и цвет яблока. Отвечает за случайное
-    размещение яблока в пределах игрового поля и его отрисовку.
+    Отвечает за случайное размещение яблока
+    в пределах игрового поля и исключает появление на змейке.
     """
 
-    def __init__(self, body_color=APPLE_COLOR):
+    def __init__(self, positions, body_color=APPLE_COLOR):
         super().__init__(body_color=body_color)
-        self.randomize_position()
+        self.randomize_position(positions)
 
-    def randomize_position(self):
+    def randomize_position(self, positions):
         """
-        Метод для случайного размещения яблока на игровом поле.
+        Случайное размещение яблока на игровом поле.
 
         Генерирует случайные координаты с учётом размеров игрового
-        поля и размера одной клетки сетки.
+        поля, и размера одной клетки сетки и исключает появление на змейке.
         """
-        position_x = randint(0, GRID_WIDTH - 1) * GRID_SIZE
-        position_y = randint(0, GRID_HEIGHT - 1) * GRID_SIZE
-        self.position = (position_x, position_y)
+        while True:
+            position_x = randint(0, GRID_WIDTH - 1) * GRID_SIZE
+            position_y = randint(0, GRID_HEIGHT - 1) * GRID_SIZE
+            new_position = (position_x, position_y)
+            if new_position not in positions:
+                self.position = new_position
+                break
 
     def draw(self):
         """
-        Метод отрисовки яблока.
+        Отрисовка яблока.
 
-        Создаёт прямоугольник размером с одну клетку в текущей
+        Создаёт квадрат размером с одну клетку в текущей
         позиции яблока и отрисовывает его вместе с границей.
         """
         rect = pygame.Rect(self.position, (GRID_SIZE, GRID_SIZE))
@@ -99,10 +102,10 @@ class Apple(GameObject):
 
 class Snake(GameObject):
     """
-    Класс змейки.
+    Хранит координаты сегментов змейки.
 
-    Хранит координаты сегментов змейки, её длину, текущее и следующее
-    направления движения, а также координаты последнего удалённого
+    Хранит информацию о длине, текущем и следующем
+    направлениях движения, а также координатах последнего удалённого
     сегмента.
     """
 
@@ -114,15 +117,12 @@ class Snake(GameObject):
         начальное направление движения вправо
         """
         super().__init__(body_color=body_color)
-        self.length = 1
-        self.positions = [SCREEN_CENTER]
+        self.reset()
         self.direction = RIGHT
-        self.next_direction = None
-        self.last = None
 
     def update_direction(self):
         """
-        Метод обновления направления после нажатия на кнопку.
+        Обновление направления после нажатия на кнопку.
 
         Применяет следующее выбранное направление и сбрасывает
         сохранённое значение после его использования.
@@ -133,7 +133,7 @@ class Snake(GameObject):
 
     def move(self):
         """
-        Метод движения змейки.
+        Движение змейки.
 
         Перемещает змейку в текущем направлении, обновляет позиции
         сегментов и сохраняет координаты последнего удалённого
@@ -143,21 +143,18 @@ class Snake(GameObject):
         x, y = head_position
         dx, dy = self.direction
 
-        # Вычисляем новые координаты головы змейки с учётом размеров
         new_x = (x + dx * GRID_SIZE) % SCREEN_WIDTH
         new_y = (y + dy * GRID_SIZE) % SCREEN_HEIGHT
         new_head_position = (new_x, new_y)
 
-        # Добавляем новую позицию головы в начало списка сегментов
         self.positions.insert(0, new_head_position)
 
-        # Удаляем последний сегмент
         if len(self.positions) > self.length:
             self.last = self.positions.pop()
 
     def draw(self):
         """
-        Метод отрисовки змейки.
+        Отрисовка змейки.
 
         Рисует сегменты змейки и очищает клетку последнего
         удалённого сегмента.
@@ -167,12 +164,12 @@ class Snake(GameObject):
             pygame.draw.rect(screen, self.body_color, rect)
             pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
 
-        # Отрисовка головы змейки
-        head_rect = pygame.Rect(self.positions[0], (GRID_SIZE, GRID_SIZE))
+        head_rect = pygame.Rect(
+            self.get_head_position(), (GRID_SIZE, GRID_SIZE)
+        )
         pygame.draw.rect(screen, self.body_color, head_rect)
         pygame.draw.rect(screen, BORDER_COLOR, head_rect, 1)
 
-        # Затирание последнего сегмента
         if self.last:
             last_rect = pygame.Rect(self.last, (GRID_SIZE, GRID_SIZE))
             pygame.draw.rect(screen, BOARD_BACKGROUND_COLOR, last_rect)
@@ -187,7 +184,7 @@ class Snake(GameObject):
 
     def reset(self):
         """
-        Метод сброса змейки.
+        Cброс змейки.
 
         Возвращает змейку в начальное состояние: длина в один сегмент,
         позиция в центре игрового поля.
@@ -202,6 +199,7 @@ class Snake(GameObject):
 def handle_keys(game_object):
     """
     Обрабатывает нажатия клавиш.
+
     Изменение направления движения змейки (было в прекоде)
     """
     for event in pygame.event.get():
@@ -229,16 +227,17 @@ def main():
     """
     pygame.init()
     snake = Snake()
-    apple = Apple()
+    apple = Apple(snake.positions)
     while True:
         clock.tick(SPEED)
         handle_keys(snake)
         snake.update_direction()
         snake.move()
-        if snake.get_head_position() == apple.position:
+        head_position = snake.get_head_position()
+        if head_position == apple.position:
             snake.length += 1
-            apple.randomize_position()
-        if snake.get_head_position() in snake.positions[1:]:
+            apple.randomize_position(snake.positions)
+        if head_position in snake.positions[1:]:
             snake.reset()
             screen.fill(BOARD_BACKGROUND_COLOR)
 
